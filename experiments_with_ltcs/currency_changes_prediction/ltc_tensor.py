@@ -60,7 +60,7 @@ def cut_in_sequences(x,y,seq_len,inc=1):
     return np.stack(sequences_x,axis=1),np.stack(sequences_y,axis=1)
 
 
-class PowerData:
+class PredictionData:
 
     def __init__(self,seq_len=32):
 
@@ -97,7 +97,7 @@ class PowerData:
             batch_y = self.train_y[:,permutation[start:end]]
             yield (batch_x,batch_y)
 
-class PowerModel:
+class PredictionModel:
 
     def __init__(self,model_type,model_size,learning_rate = 0.001):
         self.model_type = model_type
@@ -235,8 +235,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
 
-    curr_data = PowerData()
-    model = PowerModel(model_type = args.model,model_size=args.size)
+    curr_data = PredictionData()
+    model = PredictionModel(model_type = args.model,model_size=args.size)
 
     model.fit(curr_data,epochs=args.epochs,log_period=args.log)
 
