@@ -1,0 +1,34 @@
+To run the test and setup the Liquid NN (LTC) use this command:
+python3 your_sample_project.py --size 32 --model lstm --log 1 --epochs 200
+
+Code Description:
+The code is a python script file named LTC4.py. It imports the following python libraries:
+
+tensorflow - a deep learning framework for building machine learning models.
+numpy - a python library for working with arrays.
+time - a python library for working with time values.
+os - a python library for interacting with the operating system.
+enum - a python library for creating enumerations.
+The script defines two Enum classes MappingType and ODESolver. These are used to define the type of mapping to be used and the type of ODE solver respectively.
+
+The code defines a class for LTC4.py which includes several custom RNN (Recurrent Neural Network) cells. The class imports necessary libraries and defines the LTCCell, CTRNN, NODE, and CTGRU classes.
+
+Here's a brief overview of each class:
+
+LTCCell: This class represents a custom RNN cell for the Leaky-Integrate-and-Fire (LIF) spiking neural network model. It inherits from rnn_cell.RNNCell and initializes several parameters in the __init__() method.
++ CTRNN: This class represents a Continuous-Time Recurrent Neural Network (CTRNN) cell. It inherits from tf.keras.layers.AbstractRNNCell. It implements the build() and call() methods to define the cell's behavior during the forward pass.
++ NODE: This class represents a Neural Ordinary Differential Equation (NODE) cell. It inherits from tf.keras.layers.AbstractRNNCell and implements the build() and call() methods similar to the CTRNN class.
++ CTGRU: This class represents a custom Gated Recurrent Unit (GRU) cell. It inherits from tf.keras.layers.AbstractRNNCell. The build() method initializes the necessary weights, and the call() method defines the forward pass of the custom GRU cell.
+Each of these custom RNN cells can be used as a building block for a more complex neural network architecture in TensorFlow.
+
+Updates in LTC 4:
+The primary differences and optimizations between LTC4.py and LTC3.py are:
++ The LTCCell class in LTC4.py has been updated to inherit from tf.keras.layers.AbstractRNNCell, whereas the LTCCell in LTC3.py inherits from rnn_cell.RNNCell. Using the AbstractRNNCell makes the code more consistent with the other classes in the script and aligns better with the modern TensorFlow 2.x API.
++ In the LTCCell class of LTC4.py, the constructor now takes arguments for input_mapping, solver, and ode_solver_unfolds. These were previously hard-coded within the class in LTC3.py, but are now more easily configurable.
++ The initialization of instance variables in the LTCCell class of LTC4.py is more concise and easier to read. Unnecessary instance variables from LTC3.py have been removed, focusing only on the essential ones needed for the cell's functionality.
++ The LTCCell class in LTC4.py has a get_config() method, which allows the class to store its configuration and be more compatible with Keras functions such as model.save() and load_model().
++ The code structure in LTC4.py is cleaner and easier to read, with less commented-out code and a more consistent style.
+Overall, LTC4.py has a cleaner structure, more flexibility, and is better aligned with the TensorFlow 2.x API compared to LTC3.py.
+
+Comparison by the original version provided by Dr. R. Hasani in 2021: 
+The classes for ctrnn_model.py and ltc_model2.py are now integrated and combined into one single class library named LTC3.py. Now users can simply load one class library to use the liquid neural network for training their model. Also it contains updated syntax and function calls to be compatible with TensorFlow 2.x. Specifically, the import statements is changed to use import tensorflow as tf instead of from tensorflow.compat.v1 import nn as rnn_cell and made changes to the way variables are created and used (e.g., tf.compat.v1.get_variable is now tf.Variable). Additionally, the use of tf.compat.v1.nn.rnn_cell.RNNCell is changed to tf.keras.layers.AbstractRNNCell in the LTCCell class definition.
