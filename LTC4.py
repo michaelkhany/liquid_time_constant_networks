@@ -1,7 +1,6 @@
 import tensorflow as tf
 import numpy as np
 from enum import Enum
-from tensorflow.compat.v1.nn import rnn_cell as rnn_cell
 
 class MappingType(Enum):
     Identity = 0
@@ -13,8 +12,9 @@ class ODESolver(Enum):
     Explicit = 1
     RungeKutta = 2
 
-# The main LTCCell class that inherits from tf.keras.layers.AbstractRNNCell
-class LTCCell(tf.keras.layers.AbstractRNNCell):
+# The main LTCCell class that inherits from tf.keras.layers.Layer
+# LTC4_0231105
+class LTCCell(tf.keras.layers.Layer):
     def __init__(self, num_units, input_mapping=MappingType.Affine, solver=ODESolver.SemiImplicit, ode_solver_unfolds=6, activation=tf.nn.tanh, **kwargs):
         super().__init__(**kwargs)
         self._num_units = num_units
@@ -23,52 +23,81 @@ class LTCCell(tf.keras.layers.AbstractRNNCell):
         self._input_mapping = input_mapping
         self._activation = activation
 
-    # Returns the state size of the cell
     @property
     def state_size(self):
         return self._num_units
 
-    # Returns the output size of the cell
     @property
     def output_size(self):
         return self._num_units
 
-    # Builds the weights for the cell
     def build(self, input_shape):
         self.kernel = self.add_weight(shape=(input_shape[-1], self._num_units), initializer='glorot_uniform', name='kernel')
         self.recurrent_kernel = self.add_weight(shape=(self._num_units, self._num_units), initializer='glorot_uniform', name='recurrent_kernel')
         self.bias = self.add_weight(shape=(self._num_units,), initializer='zeros', name='bias')
         self.built = True
 
-    # Implements the forward pass of the cell
     def call(self, inputs, states):
         prev_output = states[0]
         net_input = tf.matmul(inputs, self.kernel)
         net_input += tf.matmul(prev_output, self.recurrent_kernel)
         net_input += self.bias
-        output = self._activation(net_input)  # Use the activation function
+        
+        # # Logging intermediate values
+        # tf.print("Inputs:", inputs)
+        # tf.print("Previous State:", prev_output)
+        # tf.print("Net Input:", net_input)
+        
+        # Use the selected ODE solver to calculate the output
+        if self._solver == ODESolver.SemiImplicit:
+            output = self._semi_implicit_solver(prev_output, net_input)
+        elif self._solver == ODESolver.Explicit:
+            output = self._explicit_solver(prev_output, net_input)
+        elif self._solver == ODESolver.RungeKutta:
+            output = self._runge_kutta_solver(prev_output, net_input)
+        else:
+            raise ValueError("Unsupported ODE Solver type.")
+        
+        # # Logging output
+        # tf.print("Output:", output)
+        
+        # # Calculate and log some metrics
+        # tf.print("Output Mean:", tf.reduce_mean(output))
+        # tf.print("Output Std Dev:", tf.math.reduce_std(output))
 
         return output, [output]
 
-    # Activation function for the cell (to be implemented)
-    def activation(self, net_input):
-        pass
+    def _semi_implicit_solver(self, prev_output, net_input):
+        output = prev_output + self._ode_solver_unfolds * (self._activation(net_input) - prev_output)
+        return output
 
-    # Returns the configuration of the cell
+    def _explicit_solver(self, prev_output, net_input):
+        output = prev_output + self._ode_solver_unfolds * self._activation(net_input)
+        return output
+
+    def _runge_kutta_solver(self, prev_output, net_input):
+        dt = 1.0 / self._ode_solver_unfolds
+        k1 = self._activation(net_input)
+        k2 = self._activation(net_input + 0.5 * dt * k1)
+        k3 = self._activation(net_input + 0.5 * dt * k2)
+        k4 = self._activation(net_input + dt * k3)
+        output = prev_output + (dt / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4)
+        return output
+
     def get_config(self):
         config = super().get_config()
-        config.update({"_num_units": self._num_units})
+        config.update({"_num_units": self._num_units, "_solver": self._solver})
         return config
 
-# Define necessary classes from ctrnn_model.py
+# Defined necessary classes from ctrnn_model.py
 # (CTRNN, NODE, and CTGRU class definitions, which are not directly related to LTCCell)
-class CTRNN(tf.keras.layers.AbstractRNNCell):
+class CTRNN(tf.keras.layers.Layer):
     def __init__(self, units, global_feedback=False, activation=tf.nn.tanh, cell_clip=None, **kwargs):
+        super().__init__(**kwargs)
         self.units = units
         self.global_feedback = global_feedback
         self.activation = activation
         self.cell_clip = cell_clip
-        super(CTRNN, self).__init__(**kwargs)
 
     @property
     def state_size(self):
@@ -96,11 +125,11 @@ class CTRNN(tf.keras.layers.AbstractRNNCell):
 
         return output, [output]
 
-class NODE(tf.keras.layers.AbstractRNNCell):
+class NODE(tf.keras.layers.Layer):
     def __init__(self, units, cell_clip=None, **kwargs):
+        super().__init__(**kwargs)
         self.units = units
         self.cell_clip = cell_clip
-        super(NODE, self).__init__(**kwargs)
 
     @property
     def state_size(self):
@@ -128,12 +157,11 @@ class NODE(tf.keras.layers.AbstractRNNCell):
 
         return output, [output]
 
-
-class CTGRU(tf.keras.layers.AbstractRNNCell):
+class CTGRU(tf.keras.layers.Layer):
     def __init__(self, units, cell_clip=None, **kwargs):
+        super().__init__(**kwargs)
         self.units = units
         self.cell_clip = cell_clip
-        super(CTGRU, self).__init__(**kwargs)
 
     @property
     def state_size(self):
@@ -174,3 +202,18 @@ class CTGRU(tf.keras.layers.AbstractRNNCell):
 
         return output, [output]
 
+
+# # Example usage with LTCCell
+# num_units = 10
+# ltc_cell = LTCCell(num_units)
+
+# rnn_layer = tf.keras.layers.RNN(ltc_cell)
+
+# # Create some dummy input data
+# batch_size = 5
+# time_steps = 3
+# input_dim = 4
+# inputs = tf.random.normal([batch_size, time_steps, input_dim])
+
+# # Apply the RNN layer
+# output = rnn_layer(inputs)
